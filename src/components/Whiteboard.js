@@ -16,6 +16,7 @@ import {
 import { useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { ACTIONS } from "../constants";
+import axios from 'axios';
 
 export default function Whiteboard() {
   const stageRef = useRef();
@@ -90,8 +91,11 @@ export default function Whiteboard() {
           },
         ]);
         break;
+      default:
+        break;
     }
   }
+
   function onPointerMove() {
     if (action === ACTIONS.SELECT || !isPaining.current) return;
 
@@ -152,6 +156,8 @@ export default function Whiteboard() {
           })
         );
         break;
+      default:
+        break;
     }
   }
 
@@ -175,61 +181,76 @@ export default function Whiteboard() {
     transformerRef.current.nodes([target]);
   }
 
+  const sendDoodleToBackend = async (doodleData) => {
+    try {
+      await axios.post('/process-drawing/', { csv: doodleData });
+    } catch (error) {
+      console.error('Error processing doodle:', error);
+    }
+  };
+
+  const processDoodle = () => {
+    const doodleData = [
+      ...rectangles.map(rect => `${rect.x},${rect.y},RECTANGLE`),
+      ...circles.map(circle => `${circle.x},${circle.y},CIRCLE`),
+      ...arrows.map(arrow => `${arrow.points.join(',')},ARROW`),
+      ...scribbles.map(scribble => `${scribble.points.join(',')},SCRIBBLE`)
+    ].join('\n');
+    sendDoodleToBackend(doodleData);
+  };
+
+  const handleUndo = () => {
+    switch (action) {
+      case ACTIONS.RECTANGLE:
+        setRectangles((rectangles) => rectangles.slice(0, -1));
+        break;
+      case ACTIONS.CIRCLE:
+        setCircles((circles) => circles.slice(0, -1));
+        break;
+      case ACTIONS.ARROW:
+        setArrows((arrows) => arrows.slice(0, -1));
+        break;
+      case ACTIONS.SCRIBBLE:
+        setScribbles((scribbles) => scribbles.slice(0, -1));
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
     <>
       <div className="body-container bg-amber-200 w-full h-screen flex flex-col justify-center items-center">
-      <h1 className="text-4xl">Welcome to Curvetopia</h1>
+        <h1 className="text-4xl">Welcome to Curvetopia</h1>
         
-        {/* Controls */}
-        {/* absolute top-10 */}
-        <div className=" z-10 w-full py-2">
+        <div className="z-10 w-full py-2">
           <div className="flex justify-center items-center gap-3 py-2 px-3 w-fit mx-auto border shadow-lg rounded-lg">
             <button
-              className={
-                action === ACTIONS.SELECT
-                  ? "bg-violet-300 p-1 rounded"
-                  : "p-1 hover:bg-violet-100 rounded"
-              }
+              className={action === ACTIONS.SELECT ? "bg-violet-300 p-1 rounded" : "p-1 hover:bg-violet-100 rounded"}
               onClick={() => setAction(ACTIONS.SELECT)}
             >
               <GiArrowCursor size={"2rem"} />
             </button>
             <button
-              className={
-                action === ACTIONS.RECTANGLE
-                  ? "bg-violet-300 p-1 rounded"
-                  : "p-1 hover:bg-violet-100 rounded"
-              }
+              className={action === ACTIONS.RECTANGLE ? "bg-violet-300 p-1 rounded" : "p-1 hover:bg-violet-100 rounded"}
               onClick={() => setAction(ACTIONS.RECTANGLE)}
             >
               <TbRectangle size={"2rem"} />
             </button>
             <button
-              className={
-                action === ACTIONS.CIRCLE
-                  ? "bg-violet-300 p-1 rounded"
-                  : "p-1 hover:bg-violet-100 rounded"
-              }
+              className={action === ACTIONS.CIRCLE ? "bg-violet-300 p-1 rounded" : "p-1 hover:bg-violet-100 rounded"}
               onClick={() => setAction(ACTIONS.CIRCLE)}
             >
               <FaRegCircle size={"1.5rem"} />
             </button>
             <button
-              className={
-                action === ACTIONS.ARROW
-                  ? "bg-violet-300 p-1 rounded"
-                  : "p-1 hover:bg-violet-100 rounded"
-              }
+              className={action === ACTIONS.ARROW ? "bg-violet-300 p-1 rounded" : "p-1 hover:bg-violet-100 rounded"}
               onClick={() => setAction(ACTIONS.ARROW)}
             >
               <FaLongArrowAltRight size={"2rem"} />
             </button>
             <button
-              className={
-                action === ACTIONS.SCRIBBLE
-                  ? "bg-violet-300 p-1 rounded"
-                  : "p-1 hover:bg-violet-100 rounded"
-              }
+              className={action === ACTIONS.SCRIBBLE ? "bg-violet-300 p-1 rounded" : "p-1 hover:bg-violet-100 rounded"}
               onClick={() => setAction(ACTIONS.SCRIBBLE)}
             >
               <LuPencil size={"1.5rem"} />
@@ -247,11 +268,18 @@ export default function Whiteboard() {
             <button onClick={handleExport}>
               <IoMdDownload size={"1.5rem"} />
             </button>
+
+            <button onClick={handleUndo}>
+              Undo
+            </button>
+
+            <button onClick={processDoodle}>
+              Submit
+            </button>
           </div>
         </div>
-        {/* w-4/5 h-4/5 mx-4 my-4 */}
-        <div className="relative  w-4/5 h-4/5 mt-10 border-solid border-2 border-sky-500 overflow-hidden">
-          {/* Canvas */}
+
+        <div className="relative w-4/5 h-4/5 mt-10 border-solid border-2 border-sky-500 overflow-hidden">
           <Stage
             ref={stageRef}
             width={window.innerWidth}
