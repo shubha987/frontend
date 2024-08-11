@@ -183,7 +183,9 @@ export default function Whiteboard() {
 
   const sendDoodleToBackend = async (doodleData) => {
     try {
-      await axios.post('/process-drawing/', { csv: doodleData });
+      const response = await axios.post('/process-drawing/', { csv: doodleData });
+      const processedData = response.data.csv;
+      updateDoodle(processedData);
     } catch (error) {
       console.error('Error processing doodle:', error);
     }
@@ -197,6 +199,39 @@ export default function Whiteboard() {
       ...scribbles.map(scribble => `${scribble.points.join(',')},SCRIBBLE`)
     ].join('\n');
     sendDoodleToBackend(doodleData);
+  };
+
+  const updateDoodle = (processedData) => {
+    const newRectangles = [];
+    const newCircles = [];
+    const newArrows = [];
+    const newScribbles = [];
+
+    const lines = processedData.split('\n');
+    lines.forEach(line => {
+      const [x, y, type, ...rest] = line.split(',');
+      switch (type) {
+        case 'RECTANGLE':
+          newRectangles.push({ id: uuidv4(), x: parseFloat(x), y: parseFloat(y), width: 20, height: 20, fillColor });
+          break;
+        case 'CIRCLE':
+          newCircles.push({ id: uuidv4(), x: parseFloat(x), y: parseFloat(y), radius: 20, fillColor });
+          break;
+        case 'ARROW':
+          newArrows.push({ id: uuidv4(), points: [parseFloat(x), parseFloat(y), ...rest.map(parseFloat)], fillColor });
+          break;
+        case 'SCRIBBLE':
+          newScribbles.push({ id: uuidv4(), points: [parseFloat(x), parseFloat(y), ...rest.map(parseFloat)], fillColor });
+          break;
+        default:
+          break;
+      }
+    });
+
+    setRectangles(newRectangles);
+    setCircles(newCircles);
+    setArrows(newArrows);
+    setScribbles(newScribbles);
   };
 
   const handleUndo = () => {
